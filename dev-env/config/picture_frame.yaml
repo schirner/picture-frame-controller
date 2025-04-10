@@ -1,0 +1,45 @@
+title: Picture Frame Controller
+views:
+  - title: Picture Frame
+    path: picture_frame
+    icon: mdi:image-frame
+    badges: []
+    cards:
+      - type: vertical-stack
+        cards:
+          # Picture display card
+          - type: picture-entity
+            entity: sensor.picture_frame_next_image
+            camera_view: auto
+            show_state: false
+            show_name: false
+          
+          # Source attribution card
+          - type: markdown
+            content: >
+              **Album:** {{ state_attr('sensor.picture_frame_next_image', 'album') }}
+            
+      # Controls section
+      - type: entities
+        title: Picture Frame Controls
+        show_header_toggle: false
+        entities:
+          - entity: input_select.album_selector
+          - entity: sensor.picture_frame_current_album_display
+          - entity: button.next_image
+          - entity: button.clear_image_history
+          - type: divider
+          - entity: sensor.picture_frame_image_album
+          - entity: sensor.picture_frame_available_albums
+      
+      # Technical details card
+      - type: markdown
+        title: Image Details
+        content: >
+          **Path:** {{ states('sensor.picture_frame_next_image') }}
+          
+          **Relative Path:** {{ state_attr('sensor.picture_frame_next_image', 'relative_path') }}
+          
+          **Source Path:** {{ state_attr('sensor.picture_frame_next_image', 'source_path') }}
+          
+          **Current Album Filter:** {{ state_attr('sensor.picture_frame_next_image', 'current_album') or 'All Albums' }}
