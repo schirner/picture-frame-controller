@@ -35,6 +35,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.ha_token
 
 # IDE specific files
 .idea/
