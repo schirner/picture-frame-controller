@@ -56,24 +56,32 @@ class MediaScanner:
                     if img_path.parent == media_root:
                         album_name = "Root"
                     
-                    # Store relative path for database
-                    rel_path = str(img_path.relative_to(media_root))
+                    # Get directory path relative to media root
+                    dir_path = str(img_path.parent.relative_to(media_root))
+                    if dir_path == ".":
+                        dir_path = ""
+                        
+                    # Get just the filename
+                    filename = img_path.name
+                    
+                    # Source path for this media root
                     source_path = str(media_root)
                     
-                    # Add album to database if needed
+                    # Add album to local tracking if needed
                     if album_name not in albums:
                         albums[album_name] = []
                     
                     # Add to local tracking
+                    rel_path = os.path.join(dir_path, filename) if dir_path else filename
                     albums[album_name].append({
                         "path": rel_path,
                         "source_path": source_path
                     })
                     
-                    # Add to database
-                    album_id = self.db_manager.add_album(album_name)
+                    # Add album and image to database with directory path
+                    album_id = self.db_manager.add_album(album_name, dir_path, source_path)
                     if album_id >= 0:
-                        self.db_manager.add_image(rel_path, album_id, source_path)
+                        self.db_manager.add_image(filename, album_id)
                 
         total_images = sum(len(images) for images in albums.values())
         _LOGGER.info(f"Found {total_images} images in {len(albums)} albums")
