@@ -1,0 +1,11 @@
+{
+  "domain": "picture_frame",
+  "name": "Picture Frame Controller",
+  "documentation": "https://github.com/yourusername/ha-picture-frame",
+  "dependencies": [],
+  "config_flow": true,
+  "codeowners": ["@yourusername"],
+  "requirements": [],
+  "version": "1.0.0",
+  "iot_class": "local_polling"
+}

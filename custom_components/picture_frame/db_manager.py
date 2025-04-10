@@ -6,10 +6,9 @@ Handles SQLite database operations for tracking displayed images.
 import os
 import sqlite3
 import logging
-from pathlib import Path
 from typing import List, Dict, Optional
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 class DatabaseManager:
     """Class for managing SQLite database operations."""
@@ -57,9 +56,9 @@ class DatabaseManager:
             ''')
             
             conn.commit()
-            logger.info("Database initialized successfully")
+            _LOGGER.info("Database initialized successfully")
         except sqlite3.Error as e:
-            logger.error(f"Database initialization error: {e}")
+            _LOGGER.error(f"Database initialization error: {e}")
         finally:
             if conn:
                 conn.close()
@@ -77,9 +76,9 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM displayed_images")
             conn.commit()
-            logger.info("Cleared displayed images history")
+            _LOGGER.info("Cleared displayed images history")
         except sqlite3.Error as e:
-            logger.error(f"Error clearing displayed images: {e}")
+            _LOGGER.error(f"Error clearing displayed images: {e}")
         finally:
             if conn:
                 conn.close()
@@ -111,10 +110,10 @@ class DatabaseManager:
             
             # Get the new album ID
             album_id = cursor.lastrowid
-            logger.debug(f"Added album: {album_name} (ID: {album_id})")
+            _LOGGER.debug(f"Added album: {album_name} (ID: {album_id})")
             return album_id
         except sqlite3.Error as e:
-            logger.error(f"Error adding album {album_name}: {e}")
+            _LOGGER.error(f"Error adding album {album_name}: {e}")
             return -1
         finally:
             if conn:
@@ -149,10 +148,10 @@ class DatabaseManager:
             
             # Get the new image ID
             image_id = cursor.lastrowid
-            logger.debug(f"Added image: {image_path} (ID: {image_id})")
+            _LOGGER.debug(f"Added image: {image_path} (ID: {image_id})")
             return image_id
         except sqlite3.Error as e:
-            logger.error(f"Error adding image {image_path}: {e}")
+            _LOGGER.error(f"Error adding image {image_path}: {e}")
             return -1
         finally:
             if conn:
@@ -177,10 +176,10 @@ class DatabaseManager:
                 (image_id,)
             )
             conn.commit()
-            logger.debug(f"Marked image displayed: ID {image_id}")
+            _LOGGER.debug(f"Marked image displayed: ID {image_id}")
             return True
         except sqlite3.Error as e:
-            logger.error(f"Error marking image {image_id} as displayed: {e}")
+            _LOGGER.error(f"Error marking image {image_id} as displayed: {e}")
             return False
         finally:
             if conn:
@@ -226,7 +225,7 @@ class DatabaseManager:
             
             return images
         except sqlite3.Error as e:
-            logger.error(f"Error getting images: {e}")
+            _LOGGER.error(f"Error getting images: {e}")
             return []
         finally:
             if conn:
@@ -275,7 +274,7 @@ class DatabaseManager:
             
             return images
         except sqlite3.Error as e:
-            logger.error(f"Error getting undisplayed images: {e}")
+            _LOGGER.error(f"Error getting undisplayed images: {e}")
             return []
         finally:
             if conn:
@@ -297,7 +296,7 @@ class DatabaseManager:
             
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            logger.error(f"Error getting albums: {e}")
+            _LOGGER.error(f"Error getting albums: {e}")
             return []
         finally:
             if conn:

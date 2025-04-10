@@ -1,0 +1,1 @@
+"""Services package for picture frame custom component."""

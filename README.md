@@ -1,114 +1,148 @@
 # Picture Frame Controller for Home Assistant
 
-A service that manages image rotation for Home Assistant with WallPanel, ensuring that no image is shown twice until all images have been displayed.
+A Home Assistant custom component that manages image rotation for WallPanel, ensuring that no image is shown twice until all images have been displayed.
 
 ## Features
 
 - **Anti-Repetition Algorithm**: Ensures that all images are shown before any repeats
 - **Album Information**: Keeps track of which album each image belongs to
 - **Album Filtering**: Optional feature to show images from specific albums only
-- **Simple Web Interface**: Manage your images and albums through a web browser
-- **RESTful API**: Integrate with Home Assistant automations or other services
+- **Fully Integrated**: Runs directly as a Home Assistant custom component
 - **SQLite Database**: Scalable storage solution for tracking images and display history
 
 ## How It Works
 
-This service scans your Home Assistant media directory and catalogs all images by album using a SQLite database. It keeps track of which images have been displayed, ensuring that no image is shown twice until all images have been displayed.
+This component scans your Home Assistant media directories and catalogs all images by album using a SQLite database. It keeps track of which images have been displayed, ensuring that no image is shown twice until all images have been displayed.
 
 Albums are determined by the top-level directory structure in your media folder.
 
 ## Installation
 
-1. Clone this repository to your Home Assistant server or a machine that can access your Home Assistant media.
+1. Copy the `custom_components/picture_frame` directory to your Home Assistant configuration directory under `custom_components/`.
 
-2. Install the required dependencies:
+2. Add the following configuration to your Home Assistant `configuration.yaml`:
 
-```bash
-pip install -r requirements.txt
+```yaml
+# Picture Frame Controller configuration
+picture_frame:
+  media_path: /config/media
+  allowed_extensions:
+    - .jpg
+    - .jpeg
+    - .png
+    - .gif
+    - .webp
+  db_path: /config/picture_frame.db
 ```
 
-3. Configure the service by editing the settings in `config/settings.py`:
+3. Restart Home Assistant to load the custom component.
 
-```python
-# Path to your Home Assistant media folder
-MEDIA_ROOT = "/config/media"
+## Integration with WallPanel
 
-# File extensions to include
-ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+The component provides a sensor `sensor.picture_frame_next_image` that will contain the path to the next image to display. WallPanel can use this sensor value directly.
 
-# Database file path for SQLite storage
-DB_FILE = "/config/picture_frame_controller.db"
+### Example WallPanel Configuration
+
+In your WallPanel config:
+
+```yaml
+wallpanel:
+  dashboard_url: "https://your-home-assistant-url/dashboard"
+  media_url: "{{ states('sensor.picture_frame_next_image') }}"
+  # Other WallPanel configuration options...
 ```
 
-4. Run the service:
+### Using in Automations
 
-```bash
-python app.py
-```
-
-## Integration with Home Assistant and WallPanel
-
-### Option 1: Using the REST API
-
-1. Configure WallPanel to use the `/api/next_image` endpoint to fetch images.
-
-2. Create an automation in Home Assistant to refresh the image periodically, for example:
+You can create an automation to update the image periodically:
 
 ```yaml
 automation:
-  - alias: "Update WallPanel Image"
+  - alias: "Update WallPanel Image Every 5 Minutes"
     trigger:
       platform: time_pattern
-      minutes: '/5'  # Every 5 minutes
+      minutes: '/5'
     action:
-      - service: rest_command.get_next_image
+      - service: picture_frame.next_image
+```
+
+### Use with Album Selection
+
+You can select a specific album:
+
+```yaml
+automation:
+  - alias: "Display Vacation Photos in the Evening"
+    trigger:
+      platform: time
+      at: '19:00:00'
+    action:
+      - service: picture_frame.set_album
         data:
-          album: "Vacation"  # Optional parameter
+          album: "Vacation"
 ```
 
-3. Define the rest_command in your Home Assistant configuration:
+## Available Services
+
+- **picture_frame.scan_media**: Scan the media directory for new images
+- **picture_frame.next_image**: Get the next image to display
+  - Optional parameter: `album` to filter by album
+- **picture_frame.set_album**: Set the current album filter
+  - Optional parameter: `album` to set which album to use
+- **picture_frame.reset_history**: Clear the display history (all images will be considered new again)
+
+## Sensor Attributes
+
+The `sensor.picture_frame_next_image` sensor provides the following attributes:
+
+- **path**: Full path to the image
+- **album**: Album name the image belongs to
+- **relative_path**: Relative path within the media directory
+- **current_album**: Currently selected album (if any)
+- **available_albums**: List of all available albums
+
+## Example Dashboard Cards
+
+You can create a nice dashboard to manage your picture frame:
 
 ```yaml
-rest_command:
-  get_next_image:
-    url: "http://your-server:5000/api/next_image{% if album is defined %}?album={{ album }}{% endif %}"
-    method: GET
-    verify_ssl: false
-    timeout: 30
+type: vertical-stack
+cards:
+  - type: picture-entity
+    entity: sensor.picture_frame_next_image
+    name: Current Display Image
+    show_state: false
+  - type: entities
+    title: Picture Frame Controls
+    show_header_toggle: false
+    entities:
+      - entity: sensor.picture_frame_next_image
+        name: Current Image
+        secondary_info: attribute
+        attribute: album
+      - type: button
+        name: Next Image
+        tap_action:
+          action: call-service
+          service: picture_frame.next_image
+      - type: select
+        name: Select Album
+        options: >
+          {{ state_attr('sensor.picture_frame_next_image', 'available_albums') }}
+        tap_action:
+          action: call-service
+          service: picture_frame.set_album
+          data:
+            album: "{{ option }}"
 ```
 
-### Option 2: Proxy Through Home Assistant
+## Configuration Options
 
-1. Create a sensor that fetches the next image path:
-
-```yaml
-sensor:
-  - platform: rest
-    name: next_display_image
-    resource: http://your-server:5000/api/next_image
-    value_template: "{{ value_json.image.path }}"
-    json_attributes:
-      - album
-```
-
-2. Update your WallPanel configuration to use the sensor value.
-
-## API Endpoints
-
-- `GET /api/next_image`: Get the next image to display
-  - Optional query parameter: `album` to filter by album
-  
-- `GET /api/albums`: Get a list of all available albums
-
-- `POST /api/scan`: Trigger a manual scan of the media directory
-
-## Web Interface
-
-Access the web interface at `http://your-server:5000/` to:
-
-- View the current image
-- Select albums to filter by
-- Trigger a manual media scan
+| Option | Description | Default |
+|--------|-------------|---------|
+| `media_path` | Path to your media directory | `/config/media` |
+| `allowed_extensions` | File extensions to include | `.jpg, .jpeg, .png, .gif, .webp` |
+| `db_path` | Path to SQLite database file | `/config/picture_frame.db` |
 
 ## License
 
