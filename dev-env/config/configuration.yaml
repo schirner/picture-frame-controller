@@ -15,3 +15,109 @@ logger:
   default: info
   logs:
     custom_components.picture_frame: debug
+
+# Helper for album selection
+input_select:
+  album_selector:
+    name: "Select Album"
+    options:
+      - "Root (All Albums)"
+      - "Root"
+      - "subalbum1"
+      - "subalbum2"
+    initial: "Root (All Albums)"
+    icon: mdi:folder-multiple-image
+
+# Buttons for Picture Frame actions
+button:
+  # Button to trigger next image
+  - platform: template
+    name: "Next Image"
+    icon: "mdi:image-refresh"
+    press:
+      service: picture_frame.next_image
+  
+  # Button to clear display history
+  - platform: template
+    name: "Clear Image History"
+    icon: "mdi:history"
+    press:
+      service: picture_frame.reset_history
+
+# Template sensor to show current album more clearly
+template:
+  - sensor:
+      - name: "Picture Frame Current Album Display"
+        state: >
+          {% if states('sensor.picture_frame_current_album') == 'Root' %}
+            All images (Root folder)
+          {% elif states('sensor.picture_frame_current_album') %}
+            {{ states('sensor.picture_frame_current_album') }}
+          {% else %}
+            No album selected
+          {% endif %}
+        icon: mdi:folder-multiple-image
+        availability: "{{ states('sensor.picture_frame_current_album') != 'unavailable' }}"
+      
+      # Additional sensor to display the album of the next image
+      - name: "Picture Frame Image Album"
+        state: >
+          {% if state_attr('sensor.picture_frame_next_image', 'album') %}
+            {{ state_attr('sensor.picture_frame_next_image', 'album') }}
+          {% else %}
+            Unknown
+          {% endif %}
+        icon: mdi:image-album
+        availability: "{{ states('sensor.picture_frame_next_image') != 'unavailable' }}"
+
+# Automation to set album when input_select changes
+automation:
+  - alias: "Set Picture Frame Album"
+    description: "Sets the album when the album selector changes"
+    trigger:
+      - platform: state
+        entity_id: input_select.album_selector
+    action:
+      - service: picture_frame.set_album
+        data:
+          album: >
+            {% if trigger.to_state.state == 'Root (All Albums)' %}
+              {{ none }}
+            {% else %}
+              {{ trigger.to_state.state }}
+            {% endif %}
+      - delay:
+          seconds: 1
+      - service: picture_frame.next_image
+
+# Customize entity naming
+homeassistant:
+  customize:
+    sensor.picture_frame_current_album:
+      friendly_name: "Selected Album Filter"
+    sensor.picture_frame_next_image:
+      friendly_name: "Current Display Image"
+    sensor.picture_frame_available_albums:
+      friendly_name: "Available Albums"
+    button.next_image:
+      friendly_name: "Show Next Image"
+    button.clear_image_history:
+      friendly_name: "Reset Image History"
+
+# Dashboard for the Picture Frame Controller
+panel_iframe:
+  picture_frame_dashboard:
+    title: 'Picture Frame'
+    url: '/lovelace/picture_frame'
+    icon: mdi:image-frame
+    require_admin: false
+
+# Add a dedicated lovelace dashboard
+lovelace:
+  dashboards:
+    picture-frame:
+      mode: yaml
+      title: Picture Frame
+      icon: mdi:image-frame
+      show_in_sidebar: true
+      filename: picture_frame.yaml
