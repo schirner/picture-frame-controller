@@ -43,9 +43,17 @@ venv.bak/
 *.swo
 .DS_Store
 
-# Custom component development
-dev-env/config/home-assistant*
-dev-env/config/tts/
+# Custom component development - ignore all generated files in dev-env/config
+# Only include the main configuration file, ignore everything else
+dev-env/config/*
+!dev-env/config/configuration.yaml
+!dev-env/config/blueprints
+
+# Also ignore dynamically generated files in blueprints, but keep the directory structure
+dev-env/config/blueprints/automation/homeassistant/*
+dev-env/config/blueprints/script/homeassistant/*
+!dev-env/config/blueprints/automation/homeassistant/.gitkeep
+!dev-env/config/blueprints/script/homeassistant/.gitkeep
 
 # Dynamically generated test images
 # Uncomment if you want to regenerate test images each time
