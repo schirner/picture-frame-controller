@@ -91,6 +91,7 @@ class MediaScanner:
         """
         Get the next image to display that hasn't been shown yet.
         If all images have been shown, reset the tracking.
+        Uses database-level queries for efficiency with large collections.
         
         Args:
             album: Optional album name to filter by
@@ -102,18 +103,30 @@ class MediaScanner:
         if self._current_album is not None and not album:
             album = self._current_album
             
-        # Get undisplayed images from database
-        undisplayed_images = self.db_manager.get_undisplayed_images(album)
+        # Check how many undisplayed images exist
+        undisplayed_count = self.db_manager.count_undisplayed_images(album)
         
         # If all images have been displayed, reset tracking
-        if not undisplayed_images:
+        if undisplayed_count == 0:
             _LOGGER.info("All images have been displayed, resetting tracking")
             self.db_manager.clear_displayed_images()
-            undisplayed_images = self.db_manager.get_all_images(album)
-        
-        # Return a random image from the undisplayed images
-        if undisplayed_images:
-            selected = random.choice(undisplayed_images)
+            undisplayed_count = self.db_manager.count_all_images(album)
+            
+        # Return empty result if no images found
+        if undisplayed_count == 0:
+            _LOGGER.warning(f"No images found for album: {album or 'All albums'}")
+            self._current_image = {"path": "", "relative_path": "", "album": "", "source_path": ""}
+            return self._current_image
+
+        # Get a random undisplayed image directly from the database
+        selected = None
+        if self.db_manager.count_undisplayed_images(album) > 0:
+            selected = self.db_manager.get_random_undisplayed_image(album)
+        else:
+            selected = self.db_manager.get_random_image(album)
+            
+        if selected:
+            # Mark the image as displayed
             self.db_manager.mark_image_displayed(selected["id"])
             
             # Build full path from source path and relative path
@@ -129,7 +142,7 @@ class MediaScanner:
             
             return self._current_image
         
-        # Return empty result if no images found
+        # Return empty result if somehow no image was selected
         self._current_image = {"path": "", "relative_path": "", "album": "", "source_path": ""}
         return self._current_image
     

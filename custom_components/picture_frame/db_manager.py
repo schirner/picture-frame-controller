@@ -8,6 +8,7 @@ import sqlite3
 import logging
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+import random
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -405,6 +406,191 @@ class DatabaseManager:
         except sqlite3.Error as e:
             _LOGGER.error(f"Error updating schema version: {e}")
             return False
+        finally:
+            if conn:
+                conn.close()
+    
+    def count_undisplayed_images(self, album_name: Optional[str] = None) -> int:
+        """
+        Count how many images haven't been displayed yet, optionally filtered by album.
+        
+        Args:
+            album_name: Optional album name to filter by
+            
+        Returns:
+            Count of undisplayed images
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            if album_name:
+                cursor.execute("""
+                    SELECT COUNT(i.id)
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    LEFT JOIN displayed_images d ON i.id = d.image_id
+                    WHERE d.id IS NULL AND a.name = ?
+                """, (album_name,))
+            else:
+                cursor.execute("""
+                    SELECT COUNT(i.id)
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    LEFT JOIN displayed_images d ON i.id = d.image_id
+                    WHERE d.id IS NULL
+                """)
+            
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error counting undisplayed images: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+    
+    def count_all_images(self, album_name: Optional[str] = None) -> int:
+        """
+        Count all images, optionally filtered by album.
+        
+        Args:
+            album_name: Optional album name to filter by
+            
+        Returns:
+            Count of all images
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            if album_name:
+                cursor.execute("""
+                    SELECT COUNT(i.id)
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    WHERE a.name = ?
+                """, (album_name,))
+            else:
+                cursor.execute("SELECT COUNT(id) FROM images")
+            
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error counting images: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+    
+    def get_random_undisplayed_image(self, album_name: Optional[str] = None) -> Optional[Dict]:
+        """
+        Get a single random undisplayed image directly from the database.
+        
+        Args:
+            album_name: Optional album name to filter by
+            
+        Returns:
+            Dictionary with image information or None if no undisplayed images
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # SQLite doesn't have a built-in RAND() function, so we use ORDER BY RANDOM() LIMIT 1
+            if album_name:
+                cursor.execute("""
+                    SELECT i.id, i.filename, a.name, a.directory_path, a.source_path
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    LEFT JOIN displayed_images d ON i.id = d.image_id
+                    WHERE d.id IS NULL AND a.name = ?
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """, (album_name,))
+            else:
+                cursor.execute("""
+                    SELECT i.id, i.filename, a.name, a.directory_path, a.source_path
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    LEFT JOIN displayed_images d ON i.id = d.image_id
+                    WHERE d.id IS NULL
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """)
+            
+            row = cursor.fetchone()
+            
+            if row:
+                # Construct the full relative path using directory_path and filename
+                directory_path = row[3]
+                filename = row[1]
+                relative_path = os.path.join(directory_path, filename)
+                
+                return {
+                    "id": row[0],
+                    "path": relative_path,
+                    "album": row[2],
+                    "source_path": row[4]
+                }
+            return None
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error getting random undisplayed image: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    def get_random_image(self, album_name: Optional[str] = None) -> Optional[Dict]:
+        """
+        Get a single random image directly from the database.
+        
+        Args:
+            album_name: Optional album name to filter by
+            
+        Returns:
+            Dictionary with image information or None if no images
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            if album_name:
+                cursor.execute("""
+                    SELECT i.id, i.filename, a.name, a.directory_path, a.source_path
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    WHERE a.name = ?
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """, (album_name,))
+            else:
+                cursor.execute("""
+                    SELECT i.id, i.filename, a.name, a.directory_path, a.source_path
+                    FROM images i
+                    JOIN albums a ON i.album_id = a.id
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """)
+            
+            row = cursor.fetchone()
+            
+            if row:
+                # Construct the full relative path using directory_path and filename
+                directory_path = row[3]
+                filename = row[1]
+                relative_path = os.path.join(directory_path, filename)
+                
+                return {
+                    "id": row[0],
+                    "path": relative_path,
+                    "album": row[2],
+                    "source_path": row[4]
+                }
+            return None
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error getting random image: {e}")
+            return None
         finally:
             if conn:
                 conn.close()
