@@ -1,0 +1,52 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Home Assistant runtime files
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.log.*
+
+# Development environment files
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Custom component development
+dev-env/config/home-assistant*
+dev-env/config/tts/
+
+# Dynamically generated test images
+# Uncomment if you want to regenerate test images each time
+# dev-env/test_media/
