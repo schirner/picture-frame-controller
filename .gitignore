@@ -56,5 +56,4 @@ dev-env/config/blueprints/script/homeassistant/*
 !dev-env/config/blueprints/script/homeassistant/.gitkeep
 
 # Dynamically generated test images
-# Uncomment if you want to regenerate test images each time
-# dev-env/test_media/
+dev-env/test_media/
