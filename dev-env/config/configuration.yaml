@@ -62,8 +62,14 @@ template:
       # Additional sensor to display the album of the next image
       - name: "Picture Frame Image Album"
         state: >
-          {% if state_attr('sensor.picture_frame_next_image', 'album') %}
-            {{ state_attr('sensor.picture_frame_next_image', 'album') }}
+          {% if state_attr('sensor.picture_frame_next_image', 'path') %}
+            {% set path = state_attr('sensor.picture_frame_next_image', 'path') %}
+            {% set parts = path.split('/') %}
+            {% if parts|length >= 3 %}
+              {{ parts[2] }}
+            {% else %}
+              Unknown
+            {% endif %}
           {% else %}
             Unknown
           {% endif %}

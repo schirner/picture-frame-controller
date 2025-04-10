@@ -8,11 +8,9 @@ views:
       - type: vertical-stack
         cards:
           # Picture display card
-          - type: picture-entity
-            entity: sensor.picture_frame_next_image
-            camera_view: auto
-            show_state: false
-            show_name: false
+          - type: picture
+            image: "{{ states('sensor.picture_frame_next_image') }}"
+            title: "Current Picture Frame Image"
           
           # Source attribution card
           - type: markdown
@@ -36,10 +34,12 @@ views:
       - type: markdown
         title: Image Details
         content: >
-          **Path:** {{ states('sensor.picture_frame_next_image') }}
-          
           **Relative Path:** {{ state_attr('sensor.picture_frame_next_image', 'relative_path') }}
+          
+          **Path:** {{ states('sensor.picture_frame_next_image') }}
           
           **Source Path:** {{ state_attr('sensor.picture_frame_next_image', 'source_path') }}
           
           **Current Album Filter:** {{ state_attr('sensor.picture_frame_next_image', 'current_album') or 'All Albums' }}
+          
+          **Album:** {{ state_attr('sensor.picture_frame_next_image', 'album') }}
