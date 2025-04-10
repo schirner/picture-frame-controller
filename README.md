@@ -159,6 +159,10 @@ cards:
 | `allowed_extensions` | File extensions to include | `.jpg, .jpeg, .png, .gif, .webp` |
 | `db_path` | Path to SQLite database file | `/config/picture_frame.db` |
 
+## Development
+
+This entire project, including all code, documentation, and configuration examples was created by Claude 3.7 Sonnet using Visual Studio Code with GitHub Copilot in Agent mode.
+
 ## License
 
 MIT
