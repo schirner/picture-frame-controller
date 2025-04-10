@@ -1,0 +1,14 @@
+version: '3'
+services:
+  homeassistant:
+    container_name: ha_test_picture_frame
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./config:/config
+      - ../custom_components:/config/custom_components
+      - ./test_media:/media
+    environment:
+      - TZ=America/New_York
+    ports:
+      - "8123:8123"
+    restart: unless-stopped

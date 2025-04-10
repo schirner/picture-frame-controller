@@ -1,0 +1,18 @@
+default_config:
+
+# Load the Picture Frame component
+picture_frame:
+  scan_interval: 60  # Scan for new images every 60 seconds
+  media_dirs:
+    - /media/album1
+    - /media/album2
+  extensions:
+    - .jpg
+    - .jpeg
+    - .png
+  
+# Define logger levels for debugging
+logger:
+  default: info
+  logs:
+    custom_components.picture_frame: debug
