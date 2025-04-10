@@ -11,6 +11,9 @@ from pathlib import Path
 
 _LOGGER = logging.getLogger(__name__)
 
+# Schema version to track database migrations
+SCHEMA_VERSION = 1
+
 class DatabaseManager:
     """Class for managing SQLite database operations."""
     
@@ -30,14 +33,29 @@ class DatabaseManager:
             conn = self._get_connection()
             cursor = conn.cursor()
             
-            # Check if we need to perform migration
-            need_migration = False
-            try:
-                cursor.execute("SELECT directory_path FROM albums LIMIT 1")
-            except sqlite3.OperationalError:
-                need_migration = True
+            # Create schema version table first
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schema_version (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                version INTEGER NOT NULL
+            )
+            ''')
             
-            # Create tables if they don't exist or need update
+            # Check current schema version
+            cursor.execute("SELECT version FROM schema_version WHERE id = 1")
+            result = cursor.fetchone()
+            
+            if not result:
+                # First time initialization - set to current schema version
+                cursor.execute(
+                    "INSERT INTO schema_version (id, version) VALUES (1, ?)", 
+                    (SCHEMA_VERSION,)
+                )
+                current_version = SCHEMA_VERSION
+            else:
+                current_version = result[0]
+            
+            # Create tables for current schema
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS albums (
                 id INTEGER PRIMARY KEY,
@@ -67,126 +85,13 @@ class DatabaseManager:
             )
             ''')
             
-            # If migration is needed, perform it
-            if need_migration:
-                self._migrate_db(cursor)
-            
             conn.commit()
-            _LOGGER.info("Database initialized successfully")
+            _LOGGER.info(f"Database initialized with schema version {current_version}")
         except sqlite3.Error as e:
             _LOGGER.error(f"Database initialization error: {e}")
         finally:
             if conn:
                 conn.close()
-    
-    def _migrate_db(self, cursor):
-        """Migrate from old schema to new schema."""
-        try:
-            # Check if old tables exist
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'")
-            if cursor.fetchone():
-                _LOGGER.info("Migrating database structure...")
-                
-                # Create temporary tables with new schema
-                cursor.execute('''
-                CREATE TABLE IF NOT EXISTS new_albums (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    directory_path TEXT,
-                    source_path TEXT,
-                    UNIQUE(name, source_path)
-                )
-                ''')
-                
-                cursor.execute('''
-                CREATE TABLE IF NOT EXISTS new_images (
-                    id INTEGER PRIMARY KEY,
-                    filename TEXT NOT NULL,
-                    album_id INTEGER,
-                    FOREIGN KEY (album_id) REFERENCES new_albums (id),
-                    UNIQUE(filename, album_id)
-                )
-                ''')
-                
-                # Copy data from old tables to new tables
-                try:
-                    # Get all albums with their images
-                    cursor.execute('''
-                    SELECT a.id, a.name, i.path, i.source_path 
-                    FROM albums a 
-                    JOIN images i ON i.album_id = a.id
-                    ''')
-                    
-                    albums_data = {}
-                    for row in cursor.fetchall():
-                        old_album_id, album_name, image_path, source_path = row
-                        # Extract directory path from image path
-                        path_obj = Path(image_path)
-                        # Use the parent directory of the image as the album directory
-                        directory_path = str(path_obj.parent)
-                        # Get just the filename
-                        filename = path_obj.name
-                        
-                        album_key = (album_name, source_path)
-                        if album_key not in albums_data:
-                            albums_data[album_key] = {
-                                'album_name': album_name, 
-                                'directory_path': directory_path,
-                                'source_path': source_path,
-                                'images': []
-                            }
-                        albums_data[album_key]['images'].append(filename)
-                    
-                    # Insert albums into new table
-                    for album_data in albums_data.values():
-                        cursor.execute(
-                            "INSERT INTO new_albums (name, directory_path, source_path) VALUES (?, ?, ?)",
-                            (album_data['album_name'], album_data['directory_path'], album_data['source_path'])
-                        )
-                        new_album_id = cursor.lastrowid
-                        
-                        # Insert images into new table
-                        for filename in album_data['images']:
-                            cursor.execute(
-                                "INSERT INTO new_images (filename, album_id) VALUES (?, ?)",
-                                (filename, new_album_id)
-                            )
-                    
-                    # Copy displayed_images data
-                    cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS new_displayed_images (
-                        id INTEGER PRIMARY KEY,
-                        image_id INTEGER UNIQUE NOT NULL,
-                        displayed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (image_id) REFERENCES new_images (id)
-                    )
-                    ''')
-                    
-                    cursor.execute('''
-                    INSERT INTO new_displayed_images (image_id, displayed_at)
-                    SELECT ni.id, di.displayed_at
-                    FROM displayed_images di
-                    JOIN images oi ON di.image_id = oi.id
-                    JOIN new_albums na ON oi.album_id = na.id
-                    JOIN new_images ni ON ni.album_id = na.id AND ni.filename = (SELECT substr(oi.path, instr(oi.path, '/')+1))
-                    ''')
-                    
-                    # Replace old tables with new ones
-                    cursor.execute("DROP TABLE displayed_images")
-                    cursor.execute("DROP TABLE images")
-                    cursor.execute("DROP TABLE albums")
-                    
-                    cursor.execute("ALTER TABLE new_albums RENAME TO albums")
-                    cursor.execute("ALTER TABLE new_images RENAME TO images")
-                    cursor.execute("ALTER TABLE new_displayed_images RENAME TO displayed_images")
-                    
-                    _LOGGER.info("Database migration completed successfully")
-                    
-                except sqlite3.Error as e:
-                    _LOGGER.error(f"Error during migration: {e}")
-                
-        except sqlite3.Error as e:
-            _LOGGER.error(f"Migration check error: {e}")
     
     def _get_connection(self):
         """Get a SQLite connection."""
@@ -448,6 +353,58 @@ class DatabaseManager:
         except sqlite3.Error as e:
             _LOGGER.error(f"Error getting albums: {e}")
             return []
+        finally:
+            if conn:
+                conn.close()
+    
+    def get_schema_version(self) -> int:
+        """
+        Get the current schema version.
+        
+        Returns:
+            Current schema version number
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT version FROM schema_version WHERE id = 1")
+            result = cursor.fetchone()
+            
+            if result:
+                return result[0]
+            return 0
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error getting schema version: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+                
+    def update_schema_version(self, version: int) -> bool:
+        """
+        Update the schema version.
+        
+        Args:
+            version: New schema version number
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute(
+                "UPDATE schema_version SET version = ? WHERE id = 1",
+                (version,)
+            )
+            conn.commit()
+            _LOGGER.info(f"Updated schema version to {version}")
+            return True
+        except sqlite3.Error as e:
+            _LOGGER.error(f"Error updating schema version: {e}")
+            return False
         finally:
             if conn:
                 conn.close()
