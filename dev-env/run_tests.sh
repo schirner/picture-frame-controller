@@ -23,6 +23,7 @@ show_help() {
     echo "  test-next   Test next_image service"
     echo "  test-albums Test album functionality"
     echo "  test-clear  Test clearing history"
+    echo "  test-validate Run all tests with validation"
     echo "  clean       Remove all test images"
     echo "  help        Show this help message"
     echo ""
@@ -125,6 +126,12 @@ run_all_tests() {
     echo "All tests completed."
 }
 
+# Function to run all tests with validation
+run_validated_tests() {
+    echo "Running all tests with validation..."
+    python3 test_component.py --action validate-all
+}
+
 # Function to run memory test
 run_memory_test() {
     echo "Running memory usage test..."
@@ -192,6 +199,9 @@ case "$1" in
         ;;
     test-clear)
         test_clear_history
+        ;;
+    test-validate)
+        run_validated_tests
         ;;
     clean)
         clean_environment
