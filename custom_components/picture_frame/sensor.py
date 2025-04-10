@@ -84,9 +84,9 @@ class PictureFrameNextImageSensor(Entity):
         self._attributes = {}
         self._available = False
         
-        # Schedule periodic updates
+        # Schedule periodic updates - use the timedelta directly
         async_track_time_interval(
-            hass, self._async_update, timedelta(seconds=SCAN_INTERVAL)
+            hass, self._async_update, SCAN_INTERVAL
         )
         
     @property

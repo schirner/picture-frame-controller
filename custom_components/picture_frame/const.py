@@ -1,4 +1,5 @@
 """Constants for the Picture Frame component."""
+from datetime import timedelta
 
 DOMAIN = "picture_frame"
 
@@ -14,7 +15,8 @@ DEFAULT_ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"]
 DEFAULT_DB_PATH = "/config/picture_frame.db"
 
 # Update interval for sensor (in seconds)
-SCAN_INTERVAL = 300  # 5 minutes
+SCAN_INTERVAL_SECONDS = 300  # 5 minutes
+SCAN_INTERVAL = timedelta(seconds=SCAN_INTERVAL_SECONDS)
 
 # Service names
 SERVICE_SCAN_MEDIA = "scan_media"
