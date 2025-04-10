@@ -68,18 +68,42 @@ class PictureFrameTester:
         
     def assert_equal(self, actual, expected, message):
         """Assert that two values are equal."""
-        return self.assert_true(actual == expected, 
-                                f"{message} - Expected: {expected}, Got: {actual}")
+        if actual == expected:
+            print(f"✓ Validated: {message}")
+            self.test_results["passed"] += 1
+            return True
+        else:
+            error_msg = f"{message} - Expected: {expected}, Got: {actual}"
+            self.test_results["failed"] += 1
+            self.test_results["errors"].append(error_msg)
+            print(f"✗ VALIDATION FAILED: {error_msg}")
+            return False
     
     def assert_in(self, item, collection, message):
         """Assert that an item is in a collection."""
-        return self.assert_true(item in collection, 
-                               f"{message} - {item} not found in {collection}")
+        if item in collection:
+            print(f"✓ Validated: {message}")
+            self.test_results["passed"] += 1
+            return True
+        else:
+            error_msg = f"{message} - {item} not found in {collection}"
+            self.test_results["failed"] += 1
+            self.test_results["errors"].append(error_msg)
+            print(f"✗ VALIDATION FAILED: {error_msg}")
+            return False
                                
     def assert_matches(self, value, pattern, message):
         """Assert that a value matches a regular expression pattern."""
-        return self.assert_true(bool(re.match(pattern, value)), 
-                               f"{message} - {value} does not match pattern {pattern}")
+        if bool(re.match(pattern, value)):
+            print(f"✓ Validated: {message}")
+            self.test_results["passed"] += 1
+            return True
+        else:
+            error_msg = f"{message} - {value} does not match pattern {pattern}"
+            self.test_results["failed"] += 1
+            self.test_results["errors"].append(error_msg)
+            print(f"✗ VALIDATION FAILED: {error_msg}")
+            return False
     
     def test_next_image(self, album=None):
         """Test getting the next image with validation."""
