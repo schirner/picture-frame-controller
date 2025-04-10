@@ -5,6 +5,7 @@ Provides image rotation ensuring no repeats until all images are shown.
 import logging
 import os
 import voluptuous as vol
+from datetime import timedelta
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.typing import ConfigType
@@ -68,7 +69,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         CONF_DB_PATH: db_path,
     }
     
+    # Load platforms with proper scan_interval as timedelta
+    scan_interval = timedelta(seconds=SCAN_INTERVAL)
+    
     # Load platforms
+    component = entity_component.EntityComponent(
+        _LOGGER, DOMAIN, hass, scan_interval=scan_interval
+    )
+    
     hass.async_create_task(
         discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     )
