@@ -2,11 +2,10 @@ default_config:
 
 # Load the Picture Frame component
 picture_frame:
-  scan_interval: 60  # Scan for new images every 60 seconds
-  media_dirs:
+  media_paths:
     - /media/album1
     - /media/album2
-  extensions:
+  allowed_extensions:
     - .jpg
     - .jpeg
     - .png
