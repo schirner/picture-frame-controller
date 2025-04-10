@@ -32,7 +32,7 @@ NEXT_IMAGE_SCHEMA = vol.Schema({
 
 # Schema for set_album service
 SET_ALBUM_SCHEMA = vol.Schema({
-    vol.Optional(CONF_ALBUM): cv.string,
+    vol.Optional(CONF_ALBUM): vol.Any(cv.string, None),
 })
 
 # Schema for reset_history service
@@ -76,6 +76,11 @@ async def async_register(hass: HomeAssistant):
         """Handle the set_album service call."""
         media_scanner = hass.data[DOMAIN]["media_scanner"]
         album = call.data.get(CONF_ALBUM)
+        
+        # Treat empty strings as None to reset album selection
+        if album == "":
+            album = None
+            
         success = await hass.async_add_executor_job(media_scanner.set_album, album)
         
         # Force update of the current album sensor
