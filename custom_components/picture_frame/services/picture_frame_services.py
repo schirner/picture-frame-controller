@@ -15,6 +15,8 @@ from ..const import (
     SERVICE_SET_ALBUM,
     SERVICE_RESET_HISTORY,
     CONF_ALBUM,
+    SENSOR_NEXT_IMAGE,
+    SENSOR_CURRENT_ALBUM
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,12 +52,13 @@ async def async_register(hass: HomeAssistant):
         image_info = await hass.async_add_executor_job(
             media_scanner.get_next_image, album
         )
-        # Force sensor update
-        for entity_id in hass.states.async_entity_ids("sensor"):
-            if entity_id == "sensor.picture_frame_next_image":
-                await hass.services.async_call(
-                    "homeassistant", "update_entity", {"entity_id": entity_id}
-                )
+        
+        # Force sensor updates
+        for entity_id in [f"sensor.{SENSOR_NEXT_IMAGE}", f"sensor.{SENSOR_CURRENT_ALBUM}"]:
+            await hass.services.async_call(
+                "homeassistant", "update_entity", {"entity_id": entity_id}
+            )
+            
         return image_info
         
     async def handle_set_album(call: ServiceCall):
@@ -63,6 +66,13 @@ async def async_register(hass: HomeAssistant):
         media_scanner = hass.data[DOMAIN]["media_scanner"]
         album = call.data.get(CONF_ALBUM)
         success = await hass.async_add_executor_job(media_scanner.set_album, album)
+        
+        # Force update of the current album sensor
+        await hass.services.async_call(
+            "homeassistant", "update_entity", 
+            {"entity_id": f"sensor.{SENSOR_CURRENT_ALBUM}"}
+        )
+        
         return {"success": success, "album": album if success else None}
         
     async def handle_reset_history(call: ServiceCall):

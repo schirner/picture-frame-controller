@@ -15,10 +15,10 @@ import homeassistant.helpers.entity_component as entity_component
 
 from .const import (
     DOMAIN,
-    CONF_MEDIA_PATH,
+    CONF_MEDIA_PATHS,
     CONF_ALLOWED_EXTENSIONS,
     CONF_DB_PATH,
-    DEFAULT_MEDIA_PATH,
+    DEFAULT_MEDIA_PATHS,
     DEFAULT_ALLOWED_EXTENSIONS,
     DEFAULT_DB_PATH,
     SCAN_INTERVAL
@@ -30,7 +30,8 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                vol.Optional(CONF_MEDIA_PATH, default=DEFAULT_MEDIA_PATH): cv.string,
+                vol.Optional(CONF_MEDIA_PATHS, default=DEFAULT_MEDIA_PATHS): 
+                    vol.All(cv.ensure_list, [cv.string]),
                 vol.Optional(CONF_ALLOWED_EXTENSIONS, default=DEFAULT_ALLOWED_EXTENSIONS): 
                     vol.All(cv.ensure_list, [cv.string]),
                 vol.Optional(CONF_DB_PATH, default=DEFAULT_DB_PATH): cv.string,
@@ -44,18 +45,25 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Picture Frame component."""
     conf = config.get(DOMAIN, {})
     
-    media_path = conf.get(CONF_MEDIA_PATH, DEFAULT_MEDIA_PATH)
+    media_paths = conf.get(CONF_MEDIA_PATHS, DEFAULT_MEDIA_PATHS)
     allowed_extensions = conf.get(CONF_ALLOWED_EXTENSIONS, DEFAULT_ALLOWED_EXTENSIONS)
     db_path = conf.get(CONF_DB_PATH, DEFAULT_DB_PATH)
     
-    # Ensure media path exists
-    if not os.path.exists(media_path):
-        _LOGGER.error("Media path does not exist: %s", media_path)
+    # Ensure at least one media path exists
+    valid_paths = []
+    for path in media_paths:
+        if os.path.exists(path):
+            valid_paths.append(path)
+        else:
+            _LOGGER.warning("Media path does not exist: %s", path)
+    
+    if not valid_paths:
+        _LOGGER.error("None of the configured media paths exist")
         return False
     
     # Store config in hass data
     hass.data[DOMAIN] = {
-        CONF_MEDIA_PATH: media_path,
+        CONF_MEDIA_PATHS: valid_paths,
         CONF_ALLOWED_EXTENSIONS: allowed_extensions,
         CONF_DB_PATH: db_path,
     }

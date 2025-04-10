@@ -7,7 +7,7 @@ import os
 import logging
 import random
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .db_manager import DatabaseManager
 
@@ -16,16 +16,16 @@ _LOGGER = logging.getLogger(__name__)
 class MediaScanner:
     """Class for scanning media directories and tracking displayed images."""
     
-    def __init__(self, media_root: str, allowed_extensions: List[str], db_manager: DatabaseManager):
+    def __init__(self, media_paths: List[str], allowed_extensions: List[str], db_manager: DatabaseManager):
         """
         Initialize the media scanner.
         
         Args:
-            media_root: Path to the media root directory
+            media_paths: List of paths to the media root directories
             allowed_extensions: List of allowed file extensions
             db_manager: Database manager instance
         """
-        self.media_root = Path(media_root)
+        self.media_paths = [Path(path) for path in media_paths]
         self.allowed_extensions = allowed_extensions
         self.db_manager = db_manager
         self._current_album = None
@@ -40,34 +40,40 @@ class MediaScanner:
         """
         albums = {}
         
-        if not self.media_root.exists():
-            _LOGGER.error(f"Media root does not exist: {self.media_root}")
-            return albums
-            
-        # Each top-level directory is considered an album
-        for item in self.media_root.iterdir():
-            if item.is_dir():
-                album_name = item.name
-                images = []
+        # Scan each configured media path
+        for media_root in self.media_paths:
+            if not media_root.exists():
+                _LOGGER.error(f"Media path does not exist: {media_root}")
+                continue
                 
-                # Add album to database
-                album_id = self.db_manager.add_album(album_name)
-                
-                if album_id < 0:
-                    _LOGGER.error(f"Failed to add album to database: {album_name}")
-                    continue
-                
-                # Collect all valid images in this album
-                for img_path in item.glob("**/*"):
-                    if img_path.is_file() and img_path.suffix.lower() in self.allowed_extensions:
-                        # Store relative path for portability
-                        rel_path = str(img_path.relative_to(self.media_root))
-                        images.append(rel_path)
-                        
-                        # Add image to database
-                        self.db_manager.add_image(rel_path, album_id)
-                
-                albums[album_name] = images
+            # Scan for image files at any depth
+            for img_path in media_root.glob("**/*"):
+                if img_path.is_file() and img_path.suffix.lower() in self.allowed_extensions:
+                    # Use the lowest directory as the album name
+                    album_name = img_path.parent.name
+                    
+                    # Handle case where the image is directly in the media_root
+                    if img_path.parent == media_root:
+                        album_name = "Root"
+                    
+                    # Store relative path for database
+                    rel_path = str(img_path.relative_to(media_root))
+                    source_path = str(media_root)
+                    
+                    # Add album to database if needed
+                    if album_name not in albums:
+                        albums[album_name] = []
+                    
+                    # Add to local tracking
+                    albums[album_name].append({
+                        "path": rel_path,
+                        "source_path": source_path
+                    })
+                    
+                    # Add to database
+                    album_id = self.db_manager.add_album(album_name)
+                    if album_id >= 0:
+                        self.db_manager.add_image(rel_path, album_id, source_path)
                 
         total_images = sum(len(images) for images in albums.values())
         _LOGGER.info(f"Found {total_images} images in {len(albums)} albums")
@@ -102,17 +108,21 @@ class MediaScanner:
             selected = random.choice(undisplayed_images)
             self.db_manager.mark_image_displayed(selected["id"])
             
+            # Build full path from source path and relative path
+            full_path = str(Path(selected["source_path"]) / selected["path"])
+            
             # Set as current image
             self._current_image = {
-                "path": str(self.media_root / selected["path"]),
+                "path": full_path,
                 "relative_path": selected["path"],
+                "source_path": selected["source_path"], 
                 "album": selected["album"]
             }
             
             return self._current_image
         
         # Return empty result if no images found
-        self._current_image = {"path": "", "relative_path": "", "album": ""}
+        self._current_image = {"path": "", "relative_path": "", "album": "", "source_path": ""}
         return self._current_image
     
     def set_album(self, album_name: Optional[str] = None) -> bool:
@@ -145,6 +155,15 @@ class MediaScanner:
             Current album name or None if no album filter is set
         """
         return self._current_album
+    
+    def get_current_image(self) -> Dict[str, str]:
+        """
+        Get the current image info.
+        
+        Returns:
+            Current image info or empty dict if no image is set
+        """
+        return self._current_image or {"path": "", "relative_path": "", "album": "", "source_path": ""}
     
     def get_available_albums(self) -> List[str]:
         """

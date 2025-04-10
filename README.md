@@ -7,6 +7,9 @@ A Home Assistant custom component that manages image rotation for WallPanel, ens
 - **Anti-Repetition Algorithm**: Ensures that all images are shown before any repeats
 - **Album Information**: Keeps track of which album each image belongs to
 - **Album Filtering**: Optional feature to show images from specific albums only
+- **Multiple Media Paths**: Support for scanning images from multiple directories
+- **Nested Album Structure**: Uses the lowest directory containing the images as album name
+- **Current Album Sensor**: Dedicated sensor showing the album of the current image
 - **Fully Integrated**: Runs directly as a Home Assistant custom component
 - **SQLite Database**: Scalable storage solution for tracking images and display history
 
@@ -14,7 +17,7 @@ A Home Assistant custom component that manages image rotation for WallPanel, ens
 
 This component scans your Home Assistant media directories and catalogs all images by album using a SQLite database. It keeps track of which images have been displayed, ensuring that no image is shown twice until all images have been displayed.
 
-Albums are determined by the top-level directory structure in your media folder.
+Album names are determined by the lowest directory containing the images (i.e., the parent directory of the image files).
 
 ## Installation
 
@@ -25,7 +28,10 @@ Albums are determined by the top-level directory structure in your media folder.
 ```yaml
 # Picture Frame Controller configuration
 picture_frame:
-  media_path: /config/media
+  media_paths:
+    - /config/media
+    - /config/media2
+    - /config/photos
   allowed_extensions:
     - .jpg
     - .jpeg
@@ -39,7 +45,11 @@ picture_frame:
 
 ## Integration with WallPanel
 
-The component provides a sensor `sensor.picture_frame_next_image` that will contain the path to the next image to display. WallPanel can use this sensor value directly.
+The component provides two sensors: 
+- `sensor.picture_frame_next_image`: Contains the path to the next image to display
+- `sensor.picture_frame_current_album`: Shows the album name of the current image
+
+WallPanel can use the next_image sensor value directly.
 
 ### Example WallPanel Configuration
 
@@ -84,7 +94,7 @@ automation:
 
 ## Available Services
 
-- **picture_frame.scan_media**: Scan the media directory for new images
+- **picture_frame.scan_media**: Scan the media directories for new images
 - **picture_frame.next_image**: Get the next image to display
   - Optional parameter: `album` to filter by album
 - **picture_frame.set_album**: Set the current album filter
@@ -93,11 +103,18 @@ automation:
 
 ## Sensor Attributes
 
-The `sensor.picture_frame_next_image` sensor provides the following attributes:
-
-- **path**: Full path to the image
+### sensor.picture_frame_next_image
+- **state**: Full path to the image
 - **album**: Album name the image belongs to
+- **path**: Full path to the image
 - **relative_path**: Relative path within the media directory
+- **source_path**: The base media path for this image
+- **current_album**: Currently selected album (if any)
+- **available_albums**: List of all available albums
+
+### sensor.picture_frame_current_album
+- **state**: The name of the album the current image belongs to
+- **path**: Full path to the current image
 - **current_album**: Currently selected album (if any)
 - **available_albums**: List of all available albums
 
@@ -116,10 +133,8 @@ cards:
     title: Picture Frame Controls
     show_header_toggle: false
     entities:
-      - entity: sensor.picture_frame_next_image
-        name: Current Image
-        secondary_info: attribute
-        attribute: album
+      - entity: sensor.picture_frame_current_album
+        name: Current Album
       - type: button
         name: Next Image
         tap_action:
@@ -140,7 +155,7 @@ cards:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `media_path` | Path to your media directory | `/config/media` |
+| `media_paths` | List of paths to your media directories | `["/config/media"]` |
 | `allowed_extensions` | File extensions to include | `.jpg, .jpeg, .png, .gif, .webp` |
 | `db_path` | Path to SQLite database file | `/config/picture_frame.db` |
 

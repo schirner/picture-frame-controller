@@ -17,7 +17,7 @@ from datetime import timedelta
 
 from .const import (
     DOMAIN,
-    CONF_MEDIA_PATH,
+    CONF_MEDIA_PATHS,
     CONF_ALLOWED_EXTENSIONS,
     CONF_DB_PATH,
     ATTR_ALBUM,
@@ -25,7 +25,10 @@ from .const import (
     ATTR_AVAILABLE_ALBUMS,
     ATTR_PATH,
     ATTR_RELATIVE_PATH,
-    SCAN_INTERVAL
+    ATTR_SOURCE_PATH,
+    SCAN_INTERVAL,
+    SENSOR_NEXT_IMAGE,
+    SENSOR_CURRENT_ALBUM
 )
 from .db_manager import DatabaseManager
 from .media_scanner import MediaScanner
@@ -43,7 +46,7 @@ async def async_setup_platform(
         return
 
     domain_config = hass.data[DOMAIN]
-    media_path = domain_config[CONF_MEDIA_PATH]
+    media_paths = domain_config[CONF_MEDIA_PATHS]
     allowed_extensions = domain_config[CONF_ALLOWED_EXTENSIONS]
     db_path = domain_config[CONF_DB_PATH]
 
@@ -51,7 +54,7 @@ async def async_setup_platform(
     db_manager = DatabaseManager(db_path)
     
     # Create media scanner
-    media_scanner = MediaScanner(media_path, allowed_extensions, db_manager)
+    media_scanner = MediaScanner(media_paths, allowed_extensions, db_manager)
     
     # Store media scanner in hass data for services to use
     hass.data[DOMAIN]["media_scanner"] = media_scanner
@@ -60,12 +63,13 @@ async def async_setup_platform(
     await hass.async_add_executor_job(media_scanner.scan_media)
     
     # Create and add entities
-    sensor = PictureFrameSensor(hass, media_scanner)
-    async_add_entities([sensor], True)
+    next_image_sensor = PictureFrameNextImageSensor(hass, media_scanner)
+    current_album_sensor = PictureFrameCurrentAlbumSensor(hass, media_scanner)
+    async_add_entities([next_image_sensor, current_album_sensor], True)
 
 
-class PictureFrameSensor(Entity):
-    """Representation of a Picture Frame sensor."""
+class PictureFrameNextImageSensor(Entity):
+    """Representation of a Picture Frame Next Image sensor."""
 
     def __init__(self, hass: HomeAssistant, media_scanner: MediaScanner):
         """Initialize the sensor."""
@@ -74,7 +78,6 @@ class PictureFrameSensor(Entity):
         self._state = None
         self._attributes = {}
         self._available = False
-        self._last_update = None
         
         # Schedule periodic updates
         async_track_time_interval(
@@ -104,7 +107,7 @@ class PictureFrameSensor(Entity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return "picture_frame_next_image"
+        return SENSOR_NEXT_IMAGE
         
     @property
     def icon(self):
@@ -129,6 +132,7 @@ class PictureFrameSensor(Entity):
                     ATTR_ALBUM: image_info["album"],
                     ATTR_PATH: image_info["path"],
                     ATTR_RELATIVE_PATH: image_info["relative_path"],
+                    ATTR_SOURCE_PATH: image_info["source_path"],
                     ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album(),
                     ATTR_AVAILABLE_ALBUMS: self._media_scanner.get_available_albums()
                 }
@@ -137,8 +141,70 @@ class PictureFrameSensor(Entity):
                 self._state = None
                 self._available = False
                 
-            self._last_update = dt_util.utcnow()
-            
         except Exception as e:
-            _LOGGER.error(f"Error updating Picture Frame sensor: {e}")
+            _LOGGER.error(f"Error updating Picture Frame Next Image sensor: {e}")
+            self._available = False
+
+
+class PictureFrameCurrentAlbumSensor(Entity):
+    """Representation of a Picture Frame Current Album sensor."""
+
+    def __init__(self, hass: HomeAssistant, media_scanner: MediaScanner):
+        """Initialize the sensor."""
+        self.hass = hass
+        self._media_scanner = media_scanner
+        self._state = None
+        self._attributes = {}
+        self._available = False
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Picture Frame Current Album"
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._state
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return self._attributes
+
+    @property
+    def available(self):
+        """Return True if entity is available."""
+        return self._available
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return SENSOR_CURRENT_ALBUM
+        
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:folder-multiple-image"
+        
+    async def async_update(self):
+        """Fetch new state data for the sensor."""
+        try:
+            # Get the current image info
+            image_info = self._media_scanner.get_current_image()
+            
+            if image_info["album"]:
+                self._state = image_info["album"]
+                self._attributes = {
+                    ATTR_PATH: image_info["path"],
+                    ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album(),
+                    ATTR_AVAILABLE_ALBUMS: self._media_scanner.get_available_albums()
+                }
+                self._available = True
+            else:
+                self._state = None
+                self._available = False
+                
+        except Exception as e:
+            _LOGGER.error(f"Error updating Picture Frame Current Album sensor: {e}")
             self._available = False

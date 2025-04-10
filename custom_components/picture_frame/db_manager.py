@@ -40,9 +40,11 @@ class DatabaseManager:
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS images (
                 id INTEGER PRIMARY KEY,
-                path TEXT UNIQUE NOT NULL,
+                path TEXT NOT NULL,
                 album_id INTEGER,
-                FOREIGN KEY (album_id) REFERENCES albums (id)
+                source_path TEXT NOT NULL,
+                FOREIGN KEY (album_id) REFERENCES albums (id),
+                UNIQUE(path, source_path)
             )
             ''')
             
@@ -119,13 +121,14 @@ class DatabaseManager:
             if conn:
                 conn.close()
     
-    def add_image(self, image_path: str, album_id: int) -> int:
+    def add_image(self, image_path: str, album_id: int, source_path: str) -> int:
         """
         Add an image to the database if it doesn't exist.
         
         Args:
             image_path: Path to the image (relative to media root)
             album_id: ID of the album this image belongs to
+            source_path: Source media path this image belongs to
             
         Returns:
             Image ID
@@ -135,20 +138,25 @@ class DatabaseManager:
             cursor = conn.cursor()
             
             # Check if image already exists
-            cursor.execute("SELECT id FROM images WHERE path = ?", (image_path,))
+            cursor.execute(
+                "SELECT id FROM images WHERE path = ? AND source_path = ?", 
+                (image_path, source_path)
+            )
             result = cursor.fetchone()
             
             if result:
                 return result[0]
             
             # Insert new image
-            cursor.execute("INSERT INTO images (path, album_id) VALUES (?, ?)", 
-                          (image_path, album_id))
+            cursor.execute(
+                "INSERT INTO images (path, album_id, source_path) VALUES (?, ?, ?)", 
+                (image_path, album_id, source_path)
+            )
             conn.commit()
             
             # Get the new image ID
             image_id = cursor.lastrowid
-            _LOGGER.debug(f"Added image: {image_path} (ID: {image_id})")
+            _LOGGER.debug(f"Added image: {image_path} from {source_path} (ID: {image_id})")
             return image_id
         except sqlite3.Error as e:
             _LOGGER.error(f"Error adding image {image_path}: {e}")
@@ -201,14 +209,14 @@ class DatabaseManager:
             
             if album_name:
                 cursor.execute("""
-                    SELECT i.id, i.path, a.name
+                    SELECT i.id, i.path, a.name, i.source_path
                     FROM images i
                     JOIN albums a ON i.album_id = a.id
                     WHERE a.name = ?
                 """, (album_name,))
             else:
                 cursor.execute("""
-                    SELECT i.id, i.path, a.name
+                    SELECT i.id, i.path, a.name, i.source_path
                     FROM images i
                     JOIN albums a ON i.album_id = a.id
                 """)
@@ -220,7 +228,8 @@ class DatabaseManager:
                 images.append({
                     "id": row[0],
                     "path": row[1],
-                    "album": row[2]
+                    "album": row[2],
+                    "source_path": row[3]
                 })
             
             return images
@@ -247,7 +256,7 @@ class DatabaseManager:
             
             if album_name:
                 cursor.execute("""
-                    SELECT i.id, i.path, a.name
+                    SELECT i.id, i.path, a.name, i.source_path
                     FROM images i
                     JOIN albums a ON i.album_id = a.id
                     LEFT JOIN displayed_images d ON i.id = d.image_id
@@ -255,7 +264,7 @@ class DatabaseManager:
                 """, (album_name,))
             else:
                 cursor.execute("""
-                    SELECT i.id, i.path, a.name
+                    SELECT i.id, i.path, a.name, i.source_path
                     FROM images i
                     JOIN albums a ON i.album_id = a.id
                     LEFT JOIN displayed_images d ON i.id = d.image_id
@@ -269,7 +278,8 @@ class DatabaseManager:
                 images.append({
                     "id": row[0],
                     "path": row[1],
-                    "album": row[2]
+                    "album": row[2],
+                    "source_path": row[3]
                 })
             
             return images
