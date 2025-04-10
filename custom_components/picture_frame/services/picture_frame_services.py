@@ -16,7 +16,8 @@ from ..const import (
     SERVICE_RESET_HISTORY,
     CONF_ALBUM,
     SENSOR_NEXT_IMAGE,
-    SENSOR_CURRENT_ALBUM
+    SENSOR_CURRENT_ALBUM,
+    SENSOR_AVAILABLE_ALBUMS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +45,16 @@ async def async_register(hass: HomeAssistant):
         """Handle the scan_media service call."""
         media_scanner = hass.data[DOMAIN]["media_scanner"]
         await hass.async_add_executor_job(media_scanner.scan_media)
+        
+        # Force update of all sensors including the available albums sensor
+        for entity_id in [
+            f"sensor.{SENSOR_NEXT_IMAGE}", 
+            f"sensor.{SENSOR_CURRENT_ALBUM}",
+            f"sensor.{SENSOR_AVAILABLE_ALBUMS}"
+        ]:
+            await hass.services.async_call(
+                "homeassistant", "update_entity", {"entity_id": entity_id}
+            )
         
     async def handle_next_image(call: ServiceCall):
         """Handle the next_image service call."""
@@ -79,6 +90,15 @@ async def async_register(hass: HomeAssistant):
         """Handle the reset_history service call."""
         db_manager = hass.data[DOMAIN]["media_scanner"].db_manager
         await hass.async_add_executor_job(db_manager.clear_displayed_images)
+        
+        # Update all sensors after resetting history
+        for entity_id in [
+            f"sensor.{SENSOR_NEXT_IMAGE}", 
+            f"sensor.{SENSOR_CURRENT_ALBUM}"
+        ]:
+            await hass.services.async_call(
+                "homeassistant", "update_entity", {"entity_id": entity_id}
+            )
     
     # Register the services
     hass.services.async_register(

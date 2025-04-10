@@ -33,3 +33,4 @@ ATTR_SOURCE_PATH = "source_path"
 # Sensor names
 SENSOR_NEXT_IMAGE = "picture_frame_next_image"
 SENSOR_CURRENT_ALBUM = "picture_frame_current_album"
+SENSOR_AVAILABLE_ALBUMS = "picture_frame_available_albums"

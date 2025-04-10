@@ -1,11 +1,11 @@
 """
 Sensor platform for Picture Frame component.
-Provides a sensor that returns the next image to display.
+Provides sensors for image display, current album, and available albums.
 """
 
 import logging
 import os
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import Entity
@@ -28,7 +28,8 @@ from .const import (
     ATTR_SOURCE_PATH,
     SCAN_INTERVAL,
     SENSOR_NEXT_IMAGE,
-    SENSOR_CURRENT_ALBUM
+    SENSOR_CURRENT_ALBUM,
+    SENSOR_AVAILABLE_ALBUMS
 )
 from .db_manager import DatabaseManager
 from .media_scanner import MediaScanner
@@ -65,7 +66,11 @@ async def async_setup_platform(
     # Create and add entities
     next_image_sensor = PictureFrameNextImageSensor(hass, media_scanner)
     current_album_sensor = PictureFrameCurrentAlbumSensor(hass, media_scanner)
-    async_add_entities([next_image_sensor, current_album_sensor], True)
+    available_albums_sensor = PictureFrameAvailableAlbumsSensor(hass, media_scanner)
+    async_add_entities(
+        [next_image_sensor, current_album_sensor, available_albums_sensor], 
+        True
+    )
 
 
 class PictureFrameNextImageSensor(Entity):
@@ -133,8 +138,7 @@ class PictureFrameNextImageSensor(Entity):
                     ATTR_PATH: image_info["path"],
                     ATTR_RELATIVE_PATH: image_info["relative_path"],
                     ATTR_SOURCE_PATH: image_info["source_path"],
-                    ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album(),
-                    ATTR_AVAILABLE_ALBUMS: self._media_scanner.get_available_albums()
+                    ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album()
                 }
                 self._available = True
             else:
@@ -197,8 +201,7 @@ class PictureFrameCurrentAlbumSensor(Entity):
                 self._state = image_info["album"]
                 self._attributes = {
                     ATTR_PATH: image_info["path"],
-                    ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album(),
-                    ATTR_AVAILABLE_ALBUMS: self._media_scanner.get_available_albums()
+                    ATTR_CURRENT_ALBUM: self._media_scanner.get_current_album()
                 }
                 self._available = True
             else:
@@ -207,4 +210,72 @@ class PictureFrameCurrentAlbumSensor(Entity):
                 
         except Exception as e:
             _LOGGER.error(f"Error updating Picture Frame Current Album sensor: {e}")
+            self._available = False
+
+
+class PictureFrameAvailableAlbumsSensor(Entity):
+    """Representation of a Picture Frame Available Albums sensor."""
+
+    def __init__(self, hass: HomeAssistant, media_scanner: MediaScanner):
+        """Initialize the sensor."""
+        self.hass = hass
+        self._media_scanner = media_scanner
+        self._state = 0  # Will store the count of available albums
+        self._attributes = {}
+        self._available = False
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Picture Frame Available Albums"
+
+    @property
+    def state(self):
+        """Return the state of the sensor (count of albums)."""
+        return self._state
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return self._attributes
+
+    @property
+    def available(self):
+        """Return True if entity is available."""
+        return self._available
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return SENSOR_AVAILABLE_ALBUMS
+        
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:folder-multiple"
+        
+    @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return "albums"
+        
+    async def async_update(self):
+        """Fetch new state data for the sensor."""
+        try:
+            # Get the available albums
+            albums = self._media_scanner.get_available_albums()
+            
+            if albums:
+                self._state = len(albums)
+                self._attributes = {
+                    ATTR_AVAILABLE_ALBUMS: albums
+                }
+                self._available = True
+            else:
+                self._state = 0
+                self._attributes = {ATTR_AVAILABLE_ALBUMS: []}
+                self._available = True
+                
+        except Exception as e:
+            _LOGGER.error(f"Error updating Picture Frame Available Albums sensor: {e}")
             self._available = False
