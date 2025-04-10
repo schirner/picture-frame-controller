@@ -63,8 +63,11 @@ def scan_media():
         JSON with scan results
     """
     albums = media_scanner.scan_media()
+    # Calculate total images from the albums dictionary
+    total_images = sum(len(images) for images in albums.values())
+    
     return jsonify({
         "success": True,
         "albums_count": len(albums),
-        "total_images": len(media_scanner._all_images)
+        "total_images": total_images
     })

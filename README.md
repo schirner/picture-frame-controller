@@ -9,10 +9,11 @@ A service that manages image rotation for Home Assistant with WallPanel, ensurin
 - **Album Filtering**: Optional feature to show images from specific albums only
 - **Simple Web Interface**: Manage your images and albums through a web browser
 - **RESTful API**: Integrate with Home Assistant automations or other services
+- **SQLite Database**: Scalable storage solution for tracking images and display history
 
 ## How It Works
 
-This service scans your Home Assistant media directory and catalogs all images by album. It keeps track of which images have been displayed, ensuring that no image is shown twice until all images have been displayed.
+This service scans your Home Assistant media directory and catalogs all images by album using a SQLite database. It keeps track of which images have been displayed, ensuring that no image is shown twice until all images have been displayed.
 
 Albums are determined by the top-level directory structure in your media folder.
 
@@ -35,8 +36,8 @@ MEDIA_ROOT = "/config/media"
 # File extensions to include
 ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 
-# Database file to track displayed images
-DB_FILE = "/config/picture_frame_data.json"
+# Database file path for SQLite storage
+DB_FILE = "/config/picture_frame_controller.db"
 ```
 
 4. Run the service:

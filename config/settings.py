@@ -8,8 +8,8 @@ MEDIA_ROOT = "/config/media"
 # File extensions to include
 ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
 
-# Database file to track displayed images
-DB_FILE = "/config/picture_frame_data.json"
+# Database file path for SQLite storage
+DB_FILE = "/config/picture_frame_controller.db"
 
 # Default display time for each image (in seconds)
 DEFAULT_DISPLAY_TIME = 60

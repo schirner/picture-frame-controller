@@ -4,12 +4,13 @@ This module scans directories and catalogs images by album.
 """
 
 import os
-import json
 import logging
+import random
 from pathlib import Path
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional
 
 from config import settings
+from src.utils.db_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,9 @@ class MediaScanner:
     def __init__(self):
         """Initialize the media scanner."""
         self.media_root = Path(settings.MEDIA_ROOT)
-        self.db_file = Path(settings.DB_FILE)
-        self.displayed_images = set()
+        # Replace JSON file with SQLite
+        self.db_manager = DatabaseManager(settings.DB_FILE)
         self._albums_cache = {}
-        self._all_images = []
-        self.load_state()
     
     def scan_media(self) -> Dict[str, List[str]]:
         """
@@ -35,7 +34,6 @@ class MediaScanner:
         albums = {}
         
         # Reset cache
-        self._all_images = []
         self._albums_cache = {}
         
         if not self.media_root.exists():
@@ -48,21 +46,28 @@ class MediaScanner:
                 album_name = item.name
                 images = []
                 
+                # Add album to database
+                album_id = self.db_manager.add_album(album_name)
+                
+                if album_id < 0:
+                    logger.error(f"Failed to add album to database: {album_name}")
+                    continue
+                
                 # Collect all valid images in this album
                 for img_path in item.glob("**/*"):
                     if img_path.is_file() and img_path.suffix.lower() in settings.ALLOWED_EXTENSIONS:
                         # Store relative path for portability
                         rel_path = str(img_path.relative_to(self.media_root))
                         images.append(rel_path)
-                        self._all_images.append({
-                            "path": rel_path,
-                            "album": album_name
-                        })
+                        
+                        # Add image to database
+                        self.db_manager.add_image(rel_path, album_id)
                 
                 albums[album_name] = images
                 
         self._albums_cache = albums
-        logger.info(f"Found {len(self._all_images)} images in {len(albums)} albums")
+        total_images = sum(len(images) for images in albums.values())
+        logger.info(f"Found {total_images} images in {len(albums)} albums")
         return albums
     
     def get_next_image(self, album: Optional[str] = None) -> Dict[str, str]:
@@ -76,35 +81,19 @@ class MediaScanner:
         Returns:
             Dict with image path and album info
         """
-        # Scan media if we haven't done so yet
-        if not self._all_images:
-            self.scan_media()
-            
-        filtered_images = self._all_images
+        # Get undisplayed images from database
+        undisplayed_images = self.db_manager.get_undisplayed_images(album)
         
-        # Filter by album if requested
-        if album and settings.ENABLE_ALBUM_FILTERING:
-            filtered_images = [img for img in self._all_images if img["album"] == album]
-            if not filtered_images:
-                logger.warning(f"No images found in album: {album}")
-                # Fall back to all images
-                filtered_images = self._all_images
-        
-        # Find images that haven't been displayed yet
-        unseen_images = [img for img in filtered_images 
-                        if img["path"] not in self.displayed_images]
-        
-        # If all images have been seen, reset tracking
-        if not unseen_images:
+        # If all images have been displayed, reset tracking
+        if not undisplayed_images:
             logger.info("All images have been displayed, resetting tracking")
-            self.displayed_images.clear()
-            unseen_images = filtered_images
+            self.db_manager.clear_displayed_images()
+            undisplayed_images = self.db_manager.get_all_images(album)
         
-        # Return the first unseen image
-        if unseen_images:
-            selected = unseen_images[0]
-            self.displayed_images.add(selected["path"])
-            self.save_state()
+        # Return a random image from the undisplayed images
+        if undisplayed_images:
+            selected = random.choice(undisplayed_images)
+            self.db_manager.mark_image_displayed(selected["id"])
             
             # Return full path and metadata
             full_path = str(self.media_root / selected["path"])
@@ -123,34 +112,4 @@ class MediaScanner:
         Returns:
             List of album names
         """
-        if not self._albums_cache:
-            self.scan_media()
-        
-        return list(self._albums_cache.keys())
-    
-    def load_state(self):
-        """Load the state of displayed images from the database file."""
-        if self.db_file.exists():
-            try:
-                with open(self.db_file, 'r') as f:
-                    data = json.load(f)
-                    self.displayed_images = set(data.get('displayed_images', []))
-                    logger.info(f"Loaded {len(self.displayed_images)} displayed images from state")
-            except Exception as e:
-                logger.error(f"Error loading state: {e}")
-                self.displayed_images = set()
-    
-    def save_state(self):
-        """Save the current state of displayed images to the database file."""
-        try:
-            # Ensure directory exists
-            self.db_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(self.db_file, 'w') as f:
-                json.dump({
-                    'displayed_images': list(self.displayed_images)
-                }, f)
-                
-            logger.info(f"Saved {len(self.displayed_images)} displayed images to state")
-        except Exception as e:
-            logger.error(f"Error saving state: {e}")
+        return self.db_manager.get_all_albums()
