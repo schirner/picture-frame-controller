@@ -156,16 +156,27 @@ class MediaScanner:
         Returns:
             True if successful, False otherwise
         """
-        if album_name:
-            # Verify the album exists
-            albums = self.db_manager.get_all_albums()
-            if album_name not in albums:
-                _LOGGER.warning(f"Album not found: {album_name}")
-                return False
+        if album_name is None or album_name == "":
+            # Reset to show all albums
+            self._current_album = None
+            _LOGGER.info("Set current album to: All albums")
+            return True
+            
+        # For path-style albums, we need to use the last segment as the album name
+        if "/" in album_name:
+            base_name = album_name.split("/")[-1]
+        else:
+            base_name = album_name
+            
+        # Verify the album exists
+        albums = self.db_manager.get_all_albums()
+        if base_name not in albums:
+            _LOGGER.warning(f"Album not found: {album_name}")
+            return False
                 
         # Set the current album
-        self._current_album = album_name
-        _LOGGER.info(f"Set current album to: {album_name or 'All albums'}")
+        self._current_album = base_name
+        _LOGGER.info(f"Set current album to: {album_name}")
         return True
     
     def get_current_album(self) -> Optional[str]:

@@ -59,8 +59,8 @@ class PictureFrameTester:
         # Give time for state to update
         time.sleep(2)
         
-        # Check the state
-        state = self._get_state("sensor.picture_frame_current_image")
+        # Check the state - use next_image instead of current_image
+        state = self._get_state("sensor.picture_frame_next_image")
         print("Current image state:")
         pprint(state)
         return state
@@ -68,7 +68,8 @@ class PictureFrameTester:
     def test_set_album(self, album):
         """Test setting an album."""
         print(f"Testing 'set_album' service with album '{album}'...")
-        service_data = {"album": album} if album else {"album": None}
+        # Always include the album key in the service data, with None or empty string if no album specified
+        service_data = {"album": album if album else None}
         
         response = self._call_service("picture_frame", "set_album", service_data)
         if response.status_code == 200:
@@ -86,8 +87,8 @@ class PictureFrameTester:
     
     def test_clear_history(self):
         """Test clearing display history."""
-        print("Testing 'clear_display_history' service...")
-        response = self._call_service("picture_frame", "clear_display_history")
+        print("Testing 'reset_history' service...")
+        response = self._call_service("picture_frame", "reset_history")
         
         if response.status_code == 200:
             print("✓ Service call successful")
