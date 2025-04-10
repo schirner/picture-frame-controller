@@ -104,14 +104,6 @@ homeassistant:
     button.clear_image_history:
       friendly_name: "Reset Image History"
 
-# Dashboard for the Picture Frame Controller
-panel_iframe:
-  picture_frame_dashboard:
-    title: 'Picture Frame'
-    url: '/lovelace/picture_frame'
-    icon: mdi:image-frame
-    require_admin: false
-
 # Add a dedicated lovelace dashboard
 lovelace:
   dashboards:
