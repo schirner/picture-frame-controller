@@ -73,21 +73,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER, DOMAIN, hass, scan_interval=SCAN_INTERVAL
     )
     
+    # Load sensor platform
     hass.async_create_task(
         discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     )
     
-    # Register services
-    hass.async_create_task(
-        hass.helpers.discovery.async_load_platform("services", DOMAIN, {}, config)
-    )
-    
-    # Load services
-    await _register_services(hass)
-    
-    return True
-
-async def _register_services(hass):
-    """Register services for the Picture Frame component."""
+    # Register services directly instead of using discovery
     from .services import picture_frame_services
     await picture_frame_services.async_register(hass)
+    
+    return True
