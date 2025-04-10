@@ -7,9 +7,9 @@ views:
     cards:
       - type: vertical-stack
         cards:
-          # Picture display card
+          # Picture display card - using the proper URL format
           - type: picture
-            image: "{{ states('sensor.picture_frame_next_image') }}"
+            image: "/local{{ states('sensor.picture_frame_next_image').replace('/config', '') }}"
             title: "Current Picture Frame Image"
           
           # Source attribution card
@@ -23,7 +23,7 @@ views:
         show_header_toggle: false
         entities:
           - entity: input_select.album_selector
-          - entity: sensor.picture_frame_current_album_display
+          - entity: sensor.picture_frame_current_album
           - entity: button.next_image
           - entity: button.clear_image_history
           - type: divider

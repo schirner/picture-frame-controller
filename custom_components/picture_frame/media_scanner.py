@@ -49,12 +49,14 @@ class MediaScanner:
             # Scan for image files at any depth
             for img_path in media_root.glob("**/*"):
                 if img_path.is_file() and img_path.suffix.lower() in self.allowed_extensions:
-                    # Use the lowest directory as the album name
+                    # Always use the directory name containing the image as album name
                     album_name = img_path.parent.name
                     
-                    # Handle case where the image is directly in the media_root
-                    if img_path.parent == media_root:
-                        album_name = "Root"
+                    # If the parent directory name is empty (root directory), use the media path name instead
+                    if album_name == "" or img_path.parent == media_root:
+                        album_name = media_root.name
+                        if album_name == "" or album_name == "." or album_name == "/" or not album_name:
+                            album_name = f"album{self.media_paths.index(media_root) + 1}"
                     
                     # Get directory path relative to media root
                     dir_path = str(img_path.parent.relative_to(media_root))

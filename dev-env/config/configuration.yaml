@@ -32,47 +32,28 @@ input_select:
 button:
   # Button to trigger next image
   - platform: template
-    name: "Next Image"
-    icon: "mdi:image-refresh"
-    press:
-      service: picture_frame.next_image
-  
+    buttons:
+      next_image:
+        name: "Next Image"
+        icon: "mdi:image-refresh"
+        press:
+          service: picture_frame.next_image
+
   # Button to clear display history
   - platform: template
-    name: "Clear Image History"
-    icon: "mdi:history"
-    press:
-      service: picture_frame.reset_history
+    buttons:
+      clear_image_history:
+        name: "Clear Image History"
+        icon: "mdi:history"
+        press:
+          service: picture_frame.reset_history
 
-# Template sensor to show current album more clearly
+# Template sensor to display album of the current image
 template:
   - sensor:
-      - name: "Picture Frame Current Album Display"
-        state: >
-          {% if states('sensor.picture_frame_current_album') == 'Root' %}
-            All images (Root folder)
-          {% elif states('sensor.picture_frame_current_album') %}
-            {{ states('sensor.picture_frame_current_album') }}
-          {% else %}
-            No album selected
-          {% endif %}
-        icon: mdi:folder-multiple-image
-        availability: "{{ states('sensor.picture_frame_current_album') != 'unavailable' }}"
-      
-      # Additional sensor to display the album of the next image
       - name: "Picture Frame Image Album"
         state: >
-          {% if state_attr('sensor.picture_frame_next_image', 'path') %}
-            {% set path = state_attr('sensor.picture_frame_next_image', 'path') %}
-            {% set parts = path.split('/') %}
-            {% if parts|length >= 3 %}
-              {{ parts[2] }}
-            {% else %}
-              Unknown
-            {% endif %}
-          {% else %}
-            Unknown
-          {% endif %}
+          {{ state_attr('sensor.picture_frame_next_image', 'album') }}
         icon: mdi:image-album
         availability: "{{ states('sensor.picture_frame_next_image') != 'unavailable' }}"
 
@@ -105,10 +86,8 @@ homeassistant:
       friendly_name: "Current Display Image"
     sensor.picture_frame_available_albums:
       friendly_name: "Available Albums"
-    button.next_image:
-      friendly_name: "Show Next Image"
-    button.clear_image_history:
-      friendly_name: "Reset Image History"
+    sensor.picture_frame_image_album:
+      friendly_name: "Current Image Album"
 
 # Add a dedicated lovelace dashboard
 lovelace:
